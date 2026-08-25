@@ -127,6 +127,7 @@ export function calculateLocalRoute(startId, endId) {
       if (currentLine && currentLine !== edge.line) {
         interchanges.push({
           stationName: fromSt.stationName,
+          fromLine: currentLine,
           changeToLine: edge.line
         });
       }
@@ -139,13 +140,18 @@ export function calculateLocalRoute(startId, endId) {
 
   return {
     success: true,
-    sourceStation: pathStations[0],
-    destinationStation: pathStations[pathStations.length - 1],
-    path: pathStations,
-    distance: totalDistance,
-    duration: totalDuration,
+    route: {
+      distance: totalDistance,
+      duration: totalDuration,
+      stationCount: pathStations.length,
+      interchangeCount: interchanges.length,
+      interchanges: interchanges.map(ic => ({
+        station: { stationName: ic.stationName },
+        fromLine: ic.fromLine,
+        toLine: ic.changeToLine
+      }))
+    },
     fare: calculateFare(totalDistance),
-    interchangesCount: interchanges.length,
-    interchanges
+    path: pathStations
   };
 }
