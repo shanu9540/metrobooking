@@ -1,5 +1,7 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
+const { mockUsers } = require('../config/mockDb');
 
 // Helper to generate JWT Token
 const generateToken = (id) => {
@@ -19,6 +21,23 @@ const registerUser = async (req, res, next) => {
     if (!name || !email || !phone || !password) {
       res.status(400);
       throw new Error('All fields are required');
+    }
+
+    if (mongoose.connection.readyState !== 1) {
+      const mockId = `mock-user-${Date.now()}`;
+      const mockUser = {
+        _id: mockId,
+        name,
+        email,
+        phone,
+        role: 'USER'
+      };
+      mockUsers.push(mockUser);
+      return res.status(201).json({
+        success: true,
+        token: generateToken(mockId),
+        user: mockUser
+      });
     }
 
     const userExists = await User.findOne({ email });
@@ -68,6 +87,27 @@ const loginUser = async (req, res, next) => {
       throw new Error('Please provide email and password');
     }
 
+    if (mongoose.connection.readyState !== 1) {
+      const role = email.toLowerCase().includes('admin') ? 'ADMIN' : 'USER';
+      const mockId = role === 'ADMIN' ? 'mock-admin-id' : 'mock-user-id';
+      let mockUser = mockUsers.find(u => u.email === email) || mockUsers.find(u => u._id === mockId);
+      if (!mockUser) {
+        mockUser = {
+          _id: mockId,
+          name: role === 'ADMIN' ? 'Metro Admin' : 'Demo User',
+          email,
+          phone: '9999999999',
+          role
+        };
+        mockUsers.push(mockUser);
+      }
+      return res.status(200).json({
+        success: true,
+        token: generateToken(mockUser._id),
+        user: mockUser
+      });
+    }
+
     const user = await User.findOne({ email });
     if (user && (await user.comparePassword(password))) {
       res.json({
@@ -96,6 +136,12 @@ const loginUser = async (req, res, next) => {
  */
 const getMe = async (req, res, next) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.json({
+        success: true,
+        user: req.user
+      });
+    }
     const user = await User.findById(req.user._id).select('-password');
     if (user) {
       res.json({
@@ -117,6 +163,19 @@ const getMe = async (req, res, next) => {
  */
 const updateProfile = async (req, res, next) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      const mockUser = mockUsers.find(u => u._id === req.user._id);
+      if (mockUser) {
+        mockUser.name = req.body.name || mockUser.name;
+        mockUser.phone = req.body.phone || mockUser.phone;
+        mockUser.email = req.body.email || mockUser.email;
+      }
+      return res.json({
+        success: true,
+        token: generateToken(req.user._id),
+        user: mockUser || req.user
+      });
+    }
     const user = await User.findById(req.user._id);
 
     if (user) {

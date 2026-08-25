@@ -1,5 +1,7 @@
 const Ticket = require('../models/Ticket');
 const Booking = require('../models/Booking');
+const mongoose = require('mongoose');
+const { mockBookings, mockTickets } = require('../config/mockDb');
 
 /**
  * Get ticket details by ID
@@ -7,6 +9,19 @@ const Booking = require('../models/Booking');
  */
 const getTicketById = async (req, res, next) => {
   try {
+    if (mongoose.connection.readyState !== 1 || req.params.id.startsWith('mock_')) {
+      const ticket = mockTickets.find(t => t._id === req.params.id || t.ticketId === req.params.id);
+      if (!ticket) {
+        res.status(404);
+        throw new Error('Ticket not found (Mock Mode)');
+      }
+      const booking = mockBookings.find(b => b._id === ticket.booking || b.bookingId === ticket.booking);
+      ticket.booking = booking;
+      return res.json({
+        success: true,
+        ticket
+      });
+    }
     const ticket = await Ticket.findById(req.params.id)
       .populate({
         path: 'booking',
@@ -60,6 +75,35 @@ const validateTicket = async (req, res, next) => {
     if (!searchId) {
       res.status(400);
       throw new Error('Ticket ID or QR code token is required');
+    }
+
+    if (mongoose.connection.readyState !== 1 || searchId.startsWith('TKT')) {
+      const ticket = mockTickets.find(t => t.ticketId === searchId || t._id === searchId);
+      if (!ticket) {
+        return res.status(404).json({
+          success: false,
+          valid: false,
+          message: 'Invalid Ticket: Ticket not found in mock records.'
+        });
+      }
+      const booking = mockBookings.find(b => b._id === ticket.booking || b.bookingId === ticket.booking);
+      ticket.booking = booking;
+      if (ticket.isUsed) {
+        return res.status(400).json({
+          success: true,
+          valid: false,
+          message: `Invalid Ticket: This ticket has already been used (Mock Mode).`,
+          ticket
+        });
+      }
+      ticket.isUsed = true;
+      ticket.usedAt = new Date();
+      return res.json({
+        success: true,
+        valid: true,
+        message: 'Ticket Valid: Check-in approved (Mock Mode). Have a safe journey!',
+        ticket
+      });
     }
 
     const ticket = await Ticket.findOne({ ticketId: searchId })

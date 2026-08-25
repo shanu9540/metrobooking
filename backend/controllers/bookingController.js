@@ -3,6 +3,8 @@ const Station = require('../models/Station');
 const { findRoute } = require('../services/routingService');
 const { calculateFare } = require('../services/fareService');
 const { razorpay, isMock } = require('../config/razorpay');
+const mongoose = require('mongoose');
+const { mockBookings, mockStations } = require('../config/mockDb');
 
 /**
  * Create a new booking and initialize Razorpay order
@@ -33,6 +35,47 @@ const createBooking = async (req, res, next) => {
     }
 
     // 1. Fetch Source and Destination Stations
+    if (mongoose.connection.readyState !== 1) {
+      const srcStation = mockStations.find(s => s._id === sourceStationId || s.stationId === sourceStationId);
+      const destStation = mockStations.find(s => s._id === destinationStationId || s.stationId === destinationStationId);
+      if (!srcStation || !destStation) {
+        res.status(404);
+        throw new Error('Source or Destination station not found (Mock Mode)');
+      }
+      const farePerPassenger = 30;
+      const totalAmount = farePerPassenger * count;
+      const bookingId = `MT${Date.now().toString().slice(-6)}${Math.floor(1000 + Math.random() * 9000)}`;
+      const orderId = `order_mock_${Date.now()}`;
+      const mockBooking = {
+        _id: `mock_bk_${Date.now()}`,
+        bookingId,
+        user: req.user._id,
+        sourceStation: srcStation,
+        destinationStation: destStation,
+        passengerName,
+        passengerEmail,
+        passengerPhone,
+        journeyDate,
+        journeyTime,
+        passengerCount: count,
+        farePerPassenger,
+        totalAmount,
+        razorpayOrderId: orderId,
+        paymentStatus: 'PENDING',
+        createdAt: new Date()
+      };
+      mockBookings.push(mockBooking);
+      return res.status(201).json({
+        success: true,
+        booking: mockBooking,
+        razorpayOrder: {
+          id: orderId,
+          amount: Math.round(totalAmount * 100),
+          currency: 'INR'
+        }
+      });
+    }
+
     const srcStation = await Station.findById(sourceStationId);
     const destStation = await Station.findById(destinationStationId);
 
@@ -104,6 +147,14 @@ const createBooking = async (req, res, next) => {
 const getBookings = async (req, res, next) => {
   const { status } = req.query;
   try {
+    if (mongoose.connection.readyState !== 1) {
+      const userBookings = mockBookings.filter(b => b.user === req.user._id);
+      return res.json({
+        success: true,
+        count: userBookings.length,
+        bookings: userBookings
+      });
+    }
     const filter = { user: req.user._id };
     if (status) {
       filter.bookingStatus = status.toUpperCase();
@@ -129,6 +180,17 @@ const getBookings = async (req, res, next) => {
  */
 const getBookingById = async (req, res, next) => {
   try {
+    if (mongoose.connection.readyState !== 1 || req.params.id.startsWith('mock_')) {
+      const booking = mockBookings.find(b => b._id === req.params.id || b.bookingId === req.params.id);
+      if (!booking) {
+        res.status(404);
+        throw new Error('Booking not found (Mock Mode)');
+      }
+      return res.json({
+        success: true,
+        booking
+      });
+    }
     const booking = await Booking.findById(req.params.id)
       .populate('sourceStation destinationStation ticket');
 

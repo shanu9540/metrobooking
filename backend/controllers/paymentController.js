@@ -4,6 +4,8 @@ const Booking = require('../models/Booking');
 const Payment = require('../models/Payment');
 const Ticket = require('../models/Ticket');
 const { isMock } = require('../config/razorpay');
+const mongoose = require('mongoose');
+const { mockBookings, mockTickets } = require('../config/mockDb');
 
 /**
  * Verify payment signature and generate digital ticket
@@ -22,6 +24,54 @@ const verifyPayment = async (req, res, next) => {
     if (!bookingId || !razorpay_order_id || !razorpay_payment_id) {
       res.status(400);
       throw new Error('Missing booking ID, order ID, or payment ID');
+    }
+
+    if (mongoose.connection.readyState !== 1 || bookingId.startsWith('mock_')) {
+      const booking = mockBookings.find(b => b._id === bookingId || b.bookingId === bookingId);
+      if (!booking) {
+        res.status(404);
+        throw new Error('Booking not found (Mock Mode)');
+      }
+
+      booking.paymentId = razorpay_payment_id;
+      booking.bookingStatus = 'CONFIRMED';
+      booking.paymentStatus = 'SUCCESS';
+
+      const ticketId = `TKT${Date.now().toString().slice(-6)}${Math.floor(1000 + Math.random() * 9000)}`;
+      const validationToken = JSON.stringify({
+        t: ticketId,
+        b: booking.bookingId,
+        s: booking.sourceStation.stationId,
+        d: booking.destinationStation.stationId,
+        p: booking.passengerCount
+      });
+
+      const qrCodeDataUrl = await QRCode.toDataURL(validationToken, {
+        errorCorrectionLevel: 'H',
+        margin: 1,
+        width: 300
+      });
+
+      const mockTicket = {
+        _id: `mock_tkt_${Date.now()}`,
+        ticketId,
+        booking: booking._id,
+        user: booking.user,
+        qrCodeData: qrCodeDataUrl,
+        isValid: true,
+        isUsed: false,
+        createdAt: new Date()
+      };
+
+      mockTickets.push(mockTicket);
+      booking.ticket = mockTicket;
+
+      return res.status(200).json({
+        success: true,
+        message: 'Payment verified and ticket generated (Mock Mode)',
+        booking,
+        ticket: mockTicket
+      });
     }
 
     // 1. Fetch Booking
