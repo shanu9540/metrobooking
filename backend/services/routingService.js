@@ -13,8 +13,45 @@ async function findRoute(sourceId, destinationId) {
     stationMap[s._id.toString()] = s;
   });
 
-  const srcStation = stations.find(s => s._id.toString() === sourceId || s.stationId === sourceId);
-  const destStation = stations.find(s => s._id.toString() === destinationId || s.stationId === destinationId);
+  const translateOldId = (id) => {
+    if (!id) return '';
+    const mapping = {
+      'SEC18': 'noida_sector_18',
+      'NCC': 'noida_city_centre',
+      'SEC34': 'noida_sector_34',
+      'SEC52': 'noida_sector_52',
+      'NEC': 'noida_electronic_city',
+      'HCC': 'millennium_city_centre_gurugram',
+      'AIIMS': 'aiims',
+      'CS': 'central_secretariat',
+      'RC': 'rajiv_chowk',
+      'ND': 'new_delhi',
+      'CC': 'chandni_chowk',
+      'KG': 'kashmere_gate',
+      'DW21': 'dwarka_sector_21',
+      'RG': 'rajouri_garden',
+      'MH': 'mandi_house',
+      'YB': 'yamuna_bank',
+      'DL': 'dilshad_garden'
+    };
+    return mapping[id] || id;
+  };
+
+  const findStation = (id) => {
+    if (!id) return null;
+    const clean = id.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const mappedId = translateOldId(id);
+    return stations.find(s => 
+      s._id.toString() === id || 
+      s.stationId === id ||
+      s._id.toString() === mappedId ||
+      s.stationId === mappedId ||
+      s.stationName.toLowerCase().replace(/[^a-z0-9]/g, '') === clean
+    );
+  };
+
+  const srcStation = findStation(sourceId);
+  const destStation = findStation(destinationId);
 
   if (!srcStation || !destStation) {
     throw new Error('Source or Destination station not found');
