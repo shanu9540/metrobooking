@@ -22,6 +22,12 @@ const MapContainer = ({ source, destination, path = [] }) => {
       centerLat = source.location.coordinates[1];
     }
 
+    // Reset container if already bound to avoid React 18 double-render crash
+    const mapContainer = L.DomUtil.get('leaflet-map');
+    if (mapContainer) {
+      mapContainer._leaflet_id = null;
+    }
+
     // Initialize map
     const map = L.map('leaflet-map', {
       center: [centerLat, centerLng],

@@ -192,8 +192,55 @@ const BookTicket = () => {
               Route Geography Map
             </h3>
             <div className="flex-grow">
-              <MapContainer source={sourceStation} destination={destinationStation} path={route.path} />
+              <MapContainer source={sourceStation} destination={destinationStation} path={routeDetails.path} />
             </div>
+
+            {/* Live Station-by-Station Progress Tracker */}
+            {routeDetails.path && routeDetails.path.length > 0 && (
+              <div className="mt-4 border-t border-gray-100 pt-4">
+                <h4 className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider mb-2.5">Live Station Progress Timeline</h4>
+                <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+                  {routeDetails.path.map((station, index) => {
+                    const stationsLeft = routeDetails.path.length - index - 1;
+                    const isSrc = station._id === sourceStation._id;
+                    const isDest = station._id === destinationStation._id;
+                    
+                    return (
+                      <div 
+                        key={station._id} 
+                        className={`flex items-center justify-between text-xs p-2.5 rounded-lg border transition-all ${
+                          isSrc ? 'bg-emerald-50/70 border-emerald-200' : 
+                          isDest ? 'bg-red-50/70 border-red-200 shadow-sm' : 
+                          'bg-gray-50/80 border-gray-150'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={`h-2.5 w-2.5 rounded-full ${
+                            isSrc ? 'bg-emerald-500 ring-2 ring-emerald-100' : 
+                            isDest ? 'bg-red-500 ring-2 ring-red-100 animate-pulse' : 
+                            'bg-teal-500'
+                          }`}></span>
+                          <span className={`font-semibold ${
+                            isDest ? 'text-red-800 font-bold' : 
+                            isSrc ? 'text-emerald-800 font-bold' : 
+                            'text-gray-700'
+                          }`}>
+                            {station.stationName}
+                          </span>
+                        </div>
+                        <span className={`text-[10px] font-bold ${
+                          isDest ? 'text-red-650' : 
+                          isSrc ? 'text-emerald-650' : 
+                          'text-gray-450'
+                        }`}>
+                          {isDest ? '🏁 Arrived' : isSrc ? '🛫 Start' : `${stationsLeft} stations left`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
