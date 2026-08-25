@@ -22,7 +22,10 @@ const mapsRoutes = require('./routes/mapsRoutes');
 const app = express();
 
 // Connect Database
-connectDB();
+const { checkAndAutoSeed } = require('./config/autoSeed');
+connectDB().then(() => {
+  checkAndAutoSeed();
+});
 
 // Global Middlewares
 app.use(helmet({
