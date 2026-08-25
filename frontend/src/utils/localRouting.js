@@ -14,7 +14,9 @@ export const STATIC_STATIONS = [
   { _id: 'NEC', stationId: 'NEC', stationName: 'Noida Electronic City', lineName: ['Blue'], location: { type: 'Point', coordinates: [77.3730, 28.6288] }, address: 'Sector 62, Noida, Uttar Pradesh' },
   { _id: 'DL', stationId: 'DL', stationName: 'Dilshad Garden', lineName: ['Red'], location: { type: 'Point', coordinates: [77.3218, 28.6758] }, address: 'Dilshad Garden, Delhi' },
   { _id: 'SEC18', stationId: 'SEC18', stationName: 'Noida Sector 18', lineName: ['Blue'], location: { type: 'Point', coordinates: [77.3259, 28.5708] }, address: 'Sector 18, Noida, Uttar Pradesh' },
-  { _id: 'NCC', stationId: 'NCC', stationName: 'Noida City Centre', lineName: ['Blue'], location: { type: 'Point', coordinates: [77.3409, 28.5747] }, address: 'Sector 39, Noida, Uttar Pradesh' }
+  { _id: 'NCC', stationId: 'NCC', stationName: 'Noida City Centre', lineName: ['Blue'], location: { type: 'Point', coordinates: [77.3409, 28.5747] }, address: 'Sector 39, Noida, Uttar Pradesh' },
+  { _id: 'SEC34', stationId: 'SEC34', stationName: 'Noida Sector 34', lineName: ['Blue'], location: { type: 'Point', coordinates: [77.3499, 28.5796] }, address: 'Sector 34, Noida, Uttar Pradesh' },
+  { _id: 'SEC52', stationId: 'SEC52', stationName: 'Noida Sector 52', lineName: ['Blue'], location: { type: 'Point', coordinates: [77.3621, 28.5831] }, address: 'Sector 52, Noida, Uttar Pradesh' }
 ];
 
 // Connections Map (Undirected Graph)
@@ -31,7 +33,9 @@ const connections = [
   { from: 'MH', to: 'YB', line: 'Blue', dist: 2.8, dur: 5 },
   { from: 'YB', to: 'SEC18', line: 'Blue', dist: 9.2, dur: 13 },
   { from: 'SEC18', to: 'NCC', line: 'Blue', dist: 2.0, dur: 3 },
-  { from: 'NCC', to: 'NEC', line: 'Blue', dist: 4.8, dur: 7 },
+  { from: 'NCC', to: 'SEC34', line: 'Blue', dist: 1.5, dur: 2 },
+  { from: 'SEC34', to: 'SEC52', line: 'Blue', dist: 1.2, dur: 2 },
+  { from: 'SEC52', to: 'NEC', line: 'Blue', dist: 3.5, dur: 5 },
   { from: 'KG', to: 'DL', line: 'Red', dist: 9.5, dur: 14 }
 ];
 

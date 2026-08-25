@@ -34,7 +34,9 @@ const mockStations = [
   { _id: 'NEC', stationId: 'NEC', stationName: 'Noida Electronic City', lineName: ['Blue'], location: { type: 'Point', coordinates: [77.3730, 28.6288] }, address: 'Sector 62, Noida, Uttar Pradesh' },
   { _id: 'DL', stationId: 'DL', stationName: 'Dilshad Garden', lineName: ['Red'], location: { type: 'Point', coordinates: [77.3218, 28.6758] }, address: 'Dilshad Garden, Delhi' },
   { _id: 'SEC18', stationId: 'SEC18', stationName: 'Noida Sector 18', lineName: ['Blue'], location: { type: 'Point', coordinates: [77.3259, 28.5708] }, address: 'Sector 18, Noida, Uttar Pradesh' },
-  { _id: 'NCC', stationId: 'NCC', stationName: 'Noida City Centre', lineName: ['Blue'], location: { type: 'Point', coordinates: [77.3409, 28.5747] }, address: 'Sector 39, Noida, Uttar Pradesh' }
+  { _id: 'NCC', stationId: 'NCC', stationName: 'Noida City Centre', lineName: ['Blue'], location: { type: 'Point', coordinates: [77.3409, 28.5747] }, address: 'Sector 39, Noida, Uttar Pradesh' },
+  { _id: 'SEC34', stationId: 'SEC34', stationName: 'Noida Sector 34', lineName: ['Blue'], location: { type: 'Point', coordinates: [77.3499, 28.5796] }, address: 'Sector 34, Noida, Uttar Pradesh' },
+  { _id: 'SEC52', stationId: 'SEC52', stationName: 'Noida Sector 52', lineName: ['Blue'], location: { type: 'Point', coordinates: [77.3621, 28.5831] }, address: 'Sector 52, Noida, Uttar Pradesh' }
 ];
 
 module.exports = {
