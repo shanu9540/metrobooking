@@ -159,6 +159,23 @@ async function findRoute(sourceId, destinationId) {
     currentLine = seg.lineName;
   }
 
+  // Calculate Train Direction towards Terminal Station
+  const { LINES_STATIONS } = require('../config/metroData');
+  let trainDirection = '';
+  if (routeSegments.length > 0) {
+    const lastSeg = routeSegments[routeSegments.length - 1];
+    const lineStations = LINES_STATIONS[lastSeg.lineName];
+    if (lineStations && pathStations.length >= 2) {
+      const lastSt = pathStations[pathStations.length - 1].stationName;
+      const prevSt = pathStations[pathStations.length - 2].stationName;
+      const idxLast = lineStations.indexOf(lastSt);
+      const idxPrev = lineStations.indexOf(prevSt);
+      if (idxLast !== -1 && idxPrev !== -1) {
+        trainDirection = idxLast > idxPrev ? lineStations[lineStations.length - 1] : lineStations[0];
+      }
+    }
+  }
+
   return {
     path: pathStations,
     segments: routeSegments,
@@ -166,7 +183,8 @@ async function findRoute(sourceId, destinationId) {
     duration: Math.round(totalDuration), // round to nearest minute
     stationCount: pathStations.length,
     interchangeCount: interchanges.length,
-    interchanges
+    interchanges,
+    trainDirection
   };
 }
 

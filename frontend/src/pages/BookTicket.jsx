@@ -19,6 +19,7 @@ const BookTicket = () => {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [currentStationIndex, setCurrentStationIndex] = useState(0);
 
   useEffect(() => {
     if (!sourceStation || !destinationStation) {
@@ -102,23 +103,30 @@ const BookTicket = () => {
               Route Details
             </h2>
 
+            {route.trainDirection && (
+              <div className="mb-4 bg-teal-50 border border-teal-200 text-teal-800 p-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm">
+                <Navigation className="h-4 w-4 text-teal-650 shrink-0 rotate-45" />
+                <span>Train Boarding: <strong>Towards {route.trainDirection}</strong></span>
+              </div>
+            )}
+
             {/* Path flow representation */}
-            <div className="relative pl-6 border-l-2 border-dashed border-teal-500 space-y-8 py-2">
+            <div className="relative pl-6 border-l-2 border-dashed border-teal-500 space-y-6 py-2">
               <div className="relative">
                 <div className="absolute -left-8.5 -left-[35px] top-1 h-4 w-4 rounded-full bg-teal-500 border-2 border-white ring-2 ring-teal-100 flex items-center justify-center"></div>
                 <h4 className="font-bold text-gray-900 text-sm leading-tight">{sourceStation.stationName}</h4>
                 <p className="text-[10px] text-gray-500 font-semibold uppercase">{sourceStation.lineName.join('/')} Line</p>
               </div>
 
-              {route.interchanges && route.interchanges.length > 0 && (
-                <div className="relative text-xs bg-amber-50 text-amber-800 border border-amber-250 p-2.5 rounded-md">
-                  <div className="absolute -left-9 -left-[37px] top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-amber-500 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white">⇄</div>
-                  <h5 className="font-bold">Interchange Station</h5>
-                  <p className="text-[11px] opacity-90">
-                    Transfer at <b>{route.interchanges[0].station.stationName}</b> from <b>{route.interchanges[0].fromLine}</b> to <b>{route.interchanges[0].toLine} Line</b>.
+              {route.interchanges && route.interchanges.length > 0 && route.interchanges.map((ic, icIdx) => (
+                <div key={icIdx} className="relative text-xs bg-amber-50 text-amber-850 border border-amber-200 p-2.5 rounded-lg">
+                  <div className="absolute -left-[37px] top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-amber-500 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white">⇄</div>
+                  <h5 className="font-bold text-[11px] text-amber-900">Transfer Point</h5>
+                  <p className="text-[10px] mt-0.5 leading-normal opacity-90">
+                    Change at <b>{ic.station?.stationName || ic.stationName}</b> from <b>{ic.fromLine}</b> to <b>{ic.toLine}</b>.
                   </p>
                 </div>
-              )}
+              ))}
 
               <div className="relative">
                 <div className="absolute -left-8.5 -left-[35px] top-1 h-4 w-4 rounded-full bg-red-500 border-2 border-white ring-2 ring-red-100 flex items-center justify-center"></div>
@@ -192,48 +200,92 @@ const BookTicket = () => {
               Route Geography Map
             </h3>
             <div className="flex-grow">
-              <MapContainer source={sourceStation} destination={destinationStation} path={routeDetails.path} />
+              <MapContainer source={sourceStation} destination={destinationStation} path={routeDetails.path} currentStationIndex={currentStationIndex} />
             </div>
 
             {/* Live Station-by-Station Progress Tracker */}
             {routeDetails.path && routeDetails.path.length > 0 && (
               <div className="mt-4 border-t border-gray-100 pt-4">
-                <h4 className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider mb-2.5">Live Station Progress Timeline</h4>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">Live Station Progress Timeline</h4>
+                  
+                  {/* Interactive Train Sim Controls */}
+                  <div className="flex items-center gap-1.5 bg-teal-50 border border-teal-200 rounded-lg px-2.5 py-1">
+                    <button
+                      type="button"
+                      disabled={currentStationIndex === 0}
+                      onClick={() => setCurrentStationIndex(prev => prev - 1)}
+                      className="text-[10px] font-bold text-teal-700 hover:text-teal-900 disabled:opacity-30 transition-opacity"
+                    >
+                      ◀ Back
+                    </button>
+                    <span className="text-[9px] font-extrabold text-teal-800 uppercase tracking-wide">
+                      Ride Sim
+                    </span>
+                    <button
+                      type="button"
+                      disabled={currentStationIndex === routeDetails.path.length - 1}
+                      onClick={() => setCurrentStationIndex(prev => prev + 1)}
+                      className="text-[10px] font-bold text-teal-700 hover:text-teal-900 disabled:opacity-30 transition-opacity"
+                    >
+                      Next ▶
+                    </button>
+                  </div>
+                </div>
+
                 <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
                   {routeDetails.path.map((station, index) => {
-                    const stationsLeft = routeDetails.path.length - index - 1;
-                    const isSrc = station._id === sourceStation._id;
-                    const isDest = station._id === destinationStation._id;
+                    const isSrc = index === 0;
+                    const isDest = index === routeDetails.path.length - 1;
+                    const isCurrent = index === currentStationIndex;
+                    const isPassed = index < currentStationIndex;
                     
+                    const remainingStops = index - currentStationIndex;
+                    
+                    let statusLabel = '';
+                    let itemClass = '';
+                    let dotClass = '';
+                    
+                    if (isPassed) {
+                      statusLabel = isSrc ? '🛫 Start (Passed)' : 'Passed';
+                      itemClass = 'bg-gray-50/50 border-gray-150 opacity-60';
+                      dotClass = 'bg-emerald-500 ring-2 ring-emerald-100';
+                    } else if (isCurrent) {
+                      statusLabel = isSrc ? '🛫 Start (Current)' : isDest ? '🏁 Destination (Arrived)' : 'Current Station';
+                      itemClass = 'bg-teal-50 border-teal-300 shadow-sm ring-1 ring-teal-200';
+                      dotClass = 'bg-teal-600 ring-4 ring-teal-200 animate-pulse';
+                    } else if (isDest) {
+                      statusLabel = isCurrent ? '🏁 Arrived' : `${remainingStops} stops remaining`;
+                      itemClass = 'bg-red-50/40 border-red-200';
+                      dotClass = 'bg-red-500 ring-2 ring-red-100';
+                    } else {
+                      statusLabel = `${remainingStops} stops left`;
+                      itemClass = 'bg-white border-gray-250';
+                      dotClass = 'bg-gray-300 ring-2 ring-gray-100';
+                    }
+
                     return (
                       <div 
                         key={station._id} 
-                        className={`flex items-center justify-between text-xs p-2.5 rounded-lg border transition-all ${
-                          isSrc ? 'bg-emerald-50/70 border-emerald-200' : 
-                          isDest ? 'bg-red-50/70 border-red-200 shadow-sm' : 
-                          'bg-gray-50/80 border-gray-150'
-                        }`}
+                        className={`flex items-center justify-between text-xs p-2.5 rounded-lg border transition-all duration-200 ${itemClass}`}
                       >
                         <div className="flex items-center gap-2">
-                          <span className={`h-2.5 w-2.5 rounded-full ${
-                            isSrc ? 'bg-emerald-500 ring-2 ring-emerald-100' : 
-                            isDest ? 'bg-red-500 ring-2 ring-red-100 animate-pulse' : 
-                            'bg-teal-500'
-                          }`}></span>
+                          <span className={`h-2.5 w-2.5 rounded-full ${dotClass}`}></span>
                           <span className={`font-semibold ${
-                            isDest ? 'text-red-800 font-bold' : 
-                            isSrc ? 'text-emerald-800 font-bold' : 
+                            isCurrent ? 'text-teal-900 font-extrabold' : 
+                            isDest ? 'text-red-800' : 
                             'text-gray-700'
                           }`}>
                             {station.stationName}
                           </span>
                         </div>
-                        <span className={`text-[10px] font-bold ${
-                          isDest ? 'text-red-650' : 
-                          isSrc ? 'text-emerald-650' : 
-                          'text-gray-450'
+                        <span className={`text-[10px] font-extrabold ${
+                          isCurrent ? 'text-teal-750' : 
+                          isPassed ? 'text-emerald-600' : 
+                          isDest ? 'text-red-650 font-bold' : 
+                          'text-gray-400'
                         }`}>
-                          {isDest ? '🏁 Arrived' : isSrc ? '🛫 Start' : `${stationsLeft} stations left`}
+                          {statusLabel}
                         </span>
                       </div>
                     );

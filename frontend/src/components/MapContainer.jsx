@@ -1,34 +1,51 @@
 import React, { useEffect, useRef } from 'react';
+import { STATIC_STATIONS, connections } from '../utils/metroData';
 
-const MapContainer = ({ source, destination, path = [] }) => {
+const MapContainer = ({ source, destination, path, currentStationIndex }) => {
   const mapRef = useRef(null);
 
+  // Line Colors Mapping
+  const getLineColor = (lineName) => {
+    if (!lineName) return '#6B7280';
+    if (lineName.includes('Red')) return '#EF4444';
+    if (lineName.includes('Yellow')) return '#F59E0B';
+    if (lineName.includes('Blue')) return '#2563EB';
+    if (lineName.includes('Green')) return '#10B981';
+    if (lineName.includes('Violet')) return '#8B5CF6';
+    if (lineName.includes('Magenta')) return '#EC4899';
+    if (lineName.includes('Pink')) return '#F472B6';
+    if (lineName.includes('Airport') || lineName.includes('Orange')) return '#F97316';
+    if (lineName.includes('Aqua')) return '#06B6D4';
+    if (lineName.includes('Rapid')) return '#0EA5E9';
+    if (lineName.includes('Grey')) return '#6B7280';
+    return '#4B5563';
+  };
+
   useEffect(() => {
-    // Leaflet global object is loaded via index.html CDN script
     if (typeof window.L === 'undefined') {
-      console.error('Leaflet is not loaded');
+      console.error('Leaflet is not loaded on window');
       return;
     }
 
     const L = window.L;
 
+    // Reset map container to prevent double render crashes
+    const mapContainer = L.DomUtil.get('leaflet-map');
+    if (mapContainer) {
+      mapContainer._leaflet_id = null;
+    }
+
     // Default center coords (Delhi Connaught Place: Rajiv Chowk)
     let centerLat = 28.6328;
     let centerLng = 77.2197;
-    let zoomLevel = 12;
+    let zoomLevel = 11;
 
     if (source && source.location) {
       centerLng = source.location.coordinates[0];
       centerLat = source.location.coordinates[1];
     }
 
-    // Reset container if already bound to avoid React 18 double-render crash
-    const mapContainer = L.DomUtil.get('leaflet-map');
-    if (mapContainer) {
-      mapContainer._leaflet_id = null;
-    }
-
-    // Initialize map
+    // Initialize Leaflet map
     const map = L.map('leaflet-map', {
       center: [centerLat, centerLng],
       zoom: zoomLevel,
@@ -44,23 +61,57 @@ const MapContainer = ({ source, destination, path = [] }) => {
 
     const markerGroup = L.featureGroup();
 
-    // Custom Icons helper
-    const createCircleMarker = (coords, color, label, isBig = false) => {
-      const radius = isBig ? 8 : 5;
+    // 1. Draw Entire Metro Network in Background (semi-transparent)
+    connections.forEach(c => {
+      const fromSt = STATIC_STATIONS.find(s => s._id === c.from);
+      const toSt = STATIC_STATIONS.find(s => s._id === c.to);
+      if (fromSt && toSt) {
+        const polyline = L.polyline([
+          [fromSt.location.coordinates[1], fromSt.location.coordinates[0]],
+          [toSt.location.coordinates[1], toSt.location.coordinates[0]]
+        ], {
+          color: getLineColor(c.line),
+          weight: 2,
+          opacity: 0.2,
+          dashArray: c.line === 'Walkway' ? '4, 4' : null
+        }).addTo(map);
+        markerGroup.addLayer(polyline);
+      }
+    });
+
+    STATIC_STATIONS.forEach(s => {
+      const isInterchange = s.lineName && s.lineName.length > 1;
+      const marker = L.circleMarker([s.location.coordinates[1], s.location.coordinates[0]], {
+        radius: isInterchange ? 3 : 2,
+        fillColor: isInterchange ? '#000000' : getLineColor(s.lineName?.[0]),
+        color: '#ffffff',
+        weight: 1,
+        opacity: 0.3,
+        fillOpacity: 0.3
+      }).bindPopup(`<b>${s.stationName}</b><br/><span style="font-size:9px;color:gray">${s.lineName?.join(', ')}</span>`);
+      marker.addTo(map);
+      markerGroup.addLayer(marker);
+    });
+
+    // Custom helper for highlighting active path markers
+    const createActiveMarker = (coords, color, label, isPulse = false) => {
       const marker = L.circleMarker([coords[1], coords[0]], {
-        radius,
+        radius: isPulse ? 9 : 6,
         fillColor: color,
         color: '#ffffff',
-        weight: 2,
+        weight: 2.5,
         opacity: 1,
         fillOpacity: 0.95
       }).bindPopup(`<b>${label}</b>`);
       marker.addTo(map);
       markerGroup.addLayer(marker);
+      if (isPulse && marker._path) {
+        marker._path.classList.add('map-pulse-marker');
+      }
       return marker;
     };
 
-    // Draw intermediate path stations
+    // 2. Draw Highlighted Selected Path
     if (path && path.length > 0) {
       const polylinePoints = [];
       
@@ -68,79 +119,76 @@ const MapContainer = ({ source, destination, path = [] }) => {
         const coords = station.location.coordinates;
         polylinePoints.push([coords[1], coords[0]]);
 
-        const isSrc = source && station._id === source._id;
-        const isDest = destination && station._id === destination._id;
+        const isSrc = index === 0;
+        const isDest = index === path.length - 1;
+        const isCurrent = currentStationIndex !== undefined && index === currentStationIndex;
 
-        let color = '#0D9488'; // Teal default
         let label = station.stationName;
 
-        if (isSrc) {
-          color = '#10B981'; // Green for start
-          label = `Start: ${station.stationName}`;
-          createCircleMarker(coords, color, label, true);
+        if (isCurrent) {
+          createActiveMarker(coords, '#0284C7', `🚆 Current Stop: ${label}`, true);
+        } else if (isSrc) {
+          createActiveMarker(coords, '#10B981', `🛫 Start: ${label}`, false);
         } else if (isDest) {
-          color = '#EF4444'; // Red for end
-          label = `Destination: ${station.stationName}`;
-          createCircleMarker(coords, color, label, true);
+          createActiveMarker(coords, '#EF4444', `🏁 Destination: ${label}`, false);
         } else {
-          // Standard station dot
-          createCircleMarker(coords, color, label, false);
+          // Highlighted intermediate station
+          createActiveMarker(coords, '#D97706', label, false);
         }
       });
 
-      // Draw polyline
+      // Selected Path Polyline
       if (polylinePoints.length > 1) {
-        const polyline = L.polyline(polylinePoints, {
-          color: '#0F766E', // dark teal line
-          weight: 4,
-          opacity: 0.85,
-          dashArray: '5, 5'
+        const highlightedLine = L.polyline(polylinePoints, {
+          color: '#0F766E', // bold dark teal
+          weight: 5,
+          opacity: 0.95
         }).addTo(map);
-        
-        markerGroup.addLayer(polyline);
+        markerGroup.addLayer(highlightedLine);
       }
     } else {
-      // Draw single markers if no path is generated yet
+      // Single source and destination fallback markers
       if (source && source.location) {
-        createCircleMarker(
-          source.location.coordinates,
-          '#10B981',
-          `Start: ${source.stationName}`,
-          true
-        );
+        createActiveMarker(source.location.coordinates, '#10B981', `Start: ${source.stationName}`);
       }
       if (destination && destination.location) {
-        createCircleMarker(
-          destination.location.coordinates,
-          '#EF4444',
-          `Destination: ${destination.stationName}`,
-          true
-        );
+        createActiveMarker(destination.location.coordinates, '#EF4444', `Destination: ${destination.stationName}`);
       }
     }
 
-    // Auto-fit bounds if we have markers
-    if (path.length > 0 || (source && destination)) {
+    // Auto-zoom map to fit highlighted path bounds
+    if (path && path.length > 0) {
       try {
-        const bounds = markerGroup.getBounds();
+        const pathPoints = path.map(s => [s.location.coordinates[1], s.location.coordinates[0]]);
+        const bounds = L.latLngBounds(pathPoints);
         if (bounds.isValid()) {
-          map.fitBounds(bounds, { padding: [40, 40] });
+          map.fitBounds(bounds, { padding: [50, 50] });
         }
       } catch (e) {
-        console.warn('Could not auto-fit bounds:', e);
+        console.warn('Bounds zoom failed:', e);
       }
     }
 
-    // Clean up map instance on component unmount to prevent duplicate container bindings
     return () => {
       map.remove();
     };
-  }, [source, destination, path]);
+  }, [source, destination, path, currentStationIndex]);
 
   return (
     <div className="relative border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-      <div id="leaflet-map" className="h-[300px] md:h-[400px] w-full z-10" />
-      <div className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded text-[10px] text-gray-500 font-medium z-20 shadow-sm border border-gray-100">
+      <div id="leaflet-map" className="h-[300px] md:h-[420px] w-full z-10" />
+      
+      {/* Legend overlays */}
+      <div className="absolute top-2 right-2 bg-white/95 backdrop-blur-sm p-3 rounded-lg text-[9px] text-gray-700 font-medium z-20 shadow-md border border-gray-200 space-y-1">
+        <div className="font-bold border-b border-gray-100 pb-1 mb-1 text-[10px] text-teal-800">Map Legend</div>
+        <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500"></span> Start Station</div>
+        <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-500"></span> End Station</div>
+        <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-sky-500 animate-pulse"></span> Active Position</div>
+        <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-500"></span> Route Stations</div>
+        <div className="flex items-center gap-1.5"><span className="w-4 h-0.5 bg-teal-700 inline-block"></span> Selected Path</div>
+      </div>
+
+      <div className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded text-[10px] text-gray-500 font-semibold z-20 shadow-sm border border-gray-100">
         Live Network View
       </div>
     </div>

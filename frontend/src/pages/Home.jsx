@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBooking } from '../context/BookingContext';
 import { stationService } from '../services/api';
 import { MapPin, Navigation, Compass, ShieldAlert, Award, Activity, HeartHandshake } from 'lucide-react';
-import { STATIC_STATIONS } from '../utils/localRouting';
+import { STATIC_STATIONS, LINES_STATIONS } from '../utils/metroData';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -26,6 +26,16 @@ const Home = () => {
   const [toQuery, setToQuery] = useState('');
   const [showFromDropdown, setShowFromDropdown] = useState(false);
   const [showToDropdown, setShowToDropdown] = useState(false);
+  
+  // Metro line filter state
+  const [selectedFilterLine, setSelectedFilterLine] = useState('Blue Line');
+
+  const getFilteredStationsForViewer = () => {
+    if (selectedFilterLine === 'All Lines') {
+      return stations.map(s => s.stationName).sort();
+    }
+    return LINES_STATIONS[selectedFilterLine] || [];
+  };
 
   // Fetch stations on load
   useEffect(() => {
@@ -269,6 +279,80 @@ const Home = () => {
               </button>
             </div>
           </form>
+        </div>
+
+        {/* Metro Line Stations Viewer */}
+        <div className="bg-white rounded-xl shadow-lg border border-gray-150 p-6 md:p-8 mt-8">
+          <h3 className="text-lg font-bold text-gray-800 border-b border-gray-100 pb-3 mb-4 flex items-center gap-2">
+            🚇 Delhi-NCR Metro Line Stations Viewer
+          </h3>
+          <p className="text-xs text-gray-500 mb-5 leading-relaxed">
+            Select a metro corridor below to view its complete, ordered sequence of operational stations. You can click <strong>"Set Start"</strong> or <strong>"Set End"</strong> on any station to pre-fill your ticket booking search above.
+          </p>
+          
+          {/* Filter buttons */}
+          <div className="flex flex-wrap gap-2 mb-6">
+            {['All Lines', 'Blue Line', 'Blue Line Branch', 'Yellow Line', 'Red Line', 'Violet Line', 'Magenta Line', 'Airport Express', 'Aqua Line', 'Green Line', 'Grey Line', 'Rapid Metro', 'Pink Line'].map(lineName => (
+              <button
+                key={lineName}
+                type="button"
+                onClick={() => setSelectedFilterLine(lineName)}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                  selectedFilterLine === lineName 
+                    ? 'bg-teal-655 bg-teal-600 border-teal-600 text-white shadow-sm' 
+                    : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                {lineName}
+              </button>
+            ))}
+          </div>
+
+          {/* List display */}
+          <div className="max-h-[320px] overflow-y-auto pr-2 border border-gray-100 rounded-lg p-4 bg-gray-50/50">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {getFilteredStationsForViewer().map((stationName, idx) => {
+                const sId = stationName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                const stationObj = stations.find(s => s._id === sId || s.stationId === sId);
+                return (
+                  <div key={idx} className="bg-white border border-gray-200 p-3 rounded-lg flex flex-col justify-between shadow-sm">
+                    <div>
+                      <div className="text-xs font-bold text-gray-800">{stationName}</div>
+                      <div className="text-[10px] text-gray-400 mt-1">Stop #{idx + 1}</div>
+                    </div>
+                    <div className="flex gap-2 mt-3 pt-2 border-t border-gray-50">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (stationObj) {
+                            setSourceStation(stationObj);
+                            setFromQuery(stationObj.stationName);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }
+                        }}
+                        className="flex-1 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-extrabold rounded text-[10px] text-center transition-colors"
+                      >
+                        Set Start
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (stationObj) {
+                            setDestinationStation(stationObj);
+                            setToQuery(stationObj.stationName);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }
+                        }}
+                        className="flex-1 py-1 bg-red-50 hover:bg-red-100 text-red-700 font-extrabold rounded text-[10px] text-center transition-colors"
+                      >
+                        Set End
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {/* Feature section */}
