@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBooking } from '../context/BookingContext';
 import { stationService } from '../services/api';
 import { MapPin, Navigation, Compass, ShieldAlert, Award, Activity, HeartHandshake } from 'lucide-react';
+import { STATIC_STATIONS } from '../utils/localRouting';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -31,12 +32,14 @@ const Home = () => {
     const fetchStations = async () => {
       try {
         const data = await stationService.getStations();
-        if (data.success) {
+        if (data.success && data.stations && data.stations.length > 0) {
           setStations(data.stations);
+        } else {
+          setStations(STATIC_STATIONS);
         }
       } catch (err) {
-        console.error('Error fetching stations:', err);
-        setErrorMsg('Failed to load metro stations. Please check server connection.');
+        console.error('Error fetching stations, loading fallback:', err);
+        setStations(STATIC_STATIONS);
       } finally {
         setLoading(false);
       }

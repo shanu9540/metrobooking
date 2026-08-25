@@ -4,6 +4,7 @@ import { useBooking } from '../context/BookingContext';
 import { fareService } from '../services/api';
 import BookingProgress from '../components/BookingProgress';
 import MapContainer from '../components/MapContainer';
+import { calculateLocalRoute } from '../utils/localRouting';
 import { Clock, Navigation, AlertCircle, ArrowRight, ArrowLeft, Landmark, Milestone } from 'lucide-react';
 
 const BookTicket = () => {
@@ -30,14 +31,25 @@ const BookTicket = () => {
       setError('');
       try {
         const data = await fareService.calculate(sourceStation._id, destinationStation._id);
-        if (data.success) {
+        if (data.success && data.path && data.path.length > 0) {
           setRouteDetails(data);
         } else {
-          setError(data.message || 'Route calculation failed');
+          console.warn('Backend routing failed, executing local fallback...');
+          const localData = calculateLocalRoute(sourceStation._id, destinationStation._id);
+          if (localData.success) {
+            setRouteDetails(localData);
+          } else {
+            setError(localData.message || 'Route calculation failed');
+          }
         }
       } catch (err) {
-        console.error('Error calculating route:', err);
-        setError(err.response?.data?.message || 'Error communicating with routing engine');
+        console.warn('Backend routing connection error, executing local fallback...', err);
+        const localData = calculateLocalRoute(sourceStation._id, destinationStation._id);
+        if (localData.success) {
+          setRouteDetails(localData);
+        } else {
+          setError('Error communicating with routing engine and local fallback failed.');
+        }
       } finally {
         setLoading(false);
       }
